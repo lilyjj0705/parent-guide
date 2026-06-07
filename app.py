@@ -9,6 +9,7 @@
 - 책 본문에서 관련 섹션을 찾아(검색) Gemini에게 근거로 전달 → 책 기반 답변
 """
 
+import os
 import json
 import re
 import streamlit as st
@@ -268,9 +269,15 @@ if question:
                     answer = f"답변 생성 중 오류가 발생했습니다: {e}"
             st.markdown(answer)
             if found:
-                with st.expander("🔍 참고한 안내서 원문 보기"):
+                with st.expander("📖 참고한 안내서 원문·삽화 보기", expanded=True):
                     for s in found:
                         st.markdown(f"**{s['unit']} > {s['sub']}** (p.{s['page']})")
-                        st.caption(s["body"][:600] + " …")
+                        imgs = s.get("images", [])
+                        if imgs:
+                            valid = [p for p in imgs if os.path.exists(p)]
+                            if valid:
+                                st.image(valid, use_container_width=True)
+                        st.caption(s["body"][:400] + " …")
+                        st.divider()
 
     st.session_state["messages"].append({"role": "assistant", "content": answer})
