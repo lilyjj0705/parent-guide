@@ -11,6 +11,9 @@
 
 import os
 import json
+
+# 이 app.py가 있는 폴더를 기준으로 이미지 경로를 잡는다
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 import re
 import streamlit as st
 import google.generativeai as genai
@@ -273,10 +276,17 @@ if question:
                     for s in found:
                         st.markdown(f"**{s['unit']} > {s['sub']}** (p.{s['page']})")
                         imgs = s.get("images", [])
-                        if imgs:
-                            valid = [p for p in imgs if os.path.exists(p)]
-                            if valid:
-                                st.image(valid, use_container_width=True)
+                        valid, missing = [], []
+                        for p in imgs:
+                            fp = os.path.join(BASE_DIR, p)
+                            if os.path.exists(fp):
+                                valid.append(fp)
+                            else:
+                                missing.append(p)
+                        if valid:
+                            st.image(valid, use_container_width=True)
+                        if missing:
+                            st.caption("⚠️ 이미지 파일을 찾지 못함: " + ", ".join(missing))
                         st.caption(s["body"][:400] + " …")
                         st.divider()
 
