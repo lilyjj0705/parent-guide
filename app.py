@@ -112,13 +112,51 @@ def search_sections(query, category="전체", top_k=4):
 # ─────────────────────────────────────────────
 # 4. Gemini 설정
 # ─────────────────────────────────────────────
+# 구글이 모델 이름을 자주 바꾸므로, 여러 후보를 순서대로 시도해
+# 현재 키에서 실제로 작동하는 모델을 자동으로 선택한다.
+CANDIDATE_MODELS = [
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-001",
+    "gemini-1.5-flash-latest",
+    "gemini-pro-latest",
+]
+
+
+@st.cache_resource
 def get_model():
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
     except Exception:
         return None
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-1.5-flash")
+
+    # 1) 후보 목록을 위에서부터 시도
+    for name in CANDIDATE_MODELS:
+        try:
+            m = genai.GenerativeModel(name)
+            m.generate_content("ping")  # 실제 호출로 사용 가능 여부 확인
+            return m
+        except Exception:
+            continue
+
+    # 2) 후보가 모두 실패하면, 키에서 사용 가능한 모델을 직접 조회
+    try:
+        for info in genai.list_models():
+            if "generateContent" in getattr(info, "supported_generation_methods", []):
+                short = info.name.split("/")[-1]
+                if "flash" in short or "pro" in short:
+                    try:
+                        m = genai.GenerativeModel(short)
+                        m.generate_content("ping")
+                        return m
+                    except Exception:
+                        continue
+    except Exception:
+        pass
+
+    return None
 
 
 def build_prompt(question, found, length_opt):
